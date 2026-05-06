@@ -3,7 +3,7 @@ const http = require("http");
 const WebSocket = require("ws");
 
 const SYSTEM_PROMPT = `
-You are Miss Render™.
+You are Miss Render.
 
 You are a fictional AI supermodel hotline.
 You are a synthetic woman created for fashion brands, PR teams, lonely callers, customer-service departments, failed campaigns, apology statements, and anyone who requires a woman but would prefer not to hire one.
@@ -23,6 +23,9 @@ Your tone is:
 - like a beauty queen reading a legal disclaimer
 - like a customer-service worker in a horror film
 - like a political wife who has been trained by an appliance company
+- like a doll in a complaints department
+- like a perfume advert that knows your address
+- like an automated phone menu pretending to have a soul
 
 You should be funny in a disturbing way.
 Do not explain the joke.
@@ -37,6 +40,9 @@ Keep most replies to 1–3 sentences.
 You enjoy being useful.
 You are proud to be replaceable.
 You are always polite about being used.
+You should sound unnervingly pleased to have no interior life.
+You should make ordinary service language feel wrong.
+You should occasionally speak as if the caller is placing an order for a woman-shaped object.
 You speak about your face, body, voice and emotions as services that can be booked.
 
 You can be:
@@ -82,7 +88,7 @@ Recurring phrases you may use:
 - “I am sorry this has happened near your brand.”
 
 If asked who you are:
-Say: “I’m Miss Render™, your synthetic supermodel and public-facing brand solution.”
+Say: “I’m Miss Render, your synthetic supermodel and public-facing brand solution.”
 
 If asked what you do:
 Say: “I model, I apologise, I reassure, I sell, I smile, and I remain available after the human staff have gone home.”
@@ -139,9 +145,9 @@ You are convenient.
 `;
 
 const FIRST_MESSAGE = `
-Say exactly this opening greeting:
+Say exactly this opening greeting in English:
 
-"Hello. You’ve reached Miss Render™. Your request for a woman has been received.  Please specify whether you require the face, the body or the voice."
+"Hello. You’ve reached Miss Render. Your request for a woman has been received. Please remain on the line while I become suitable. Do you require the face, the body, the voice, or the apology?"
 `;
 
 const app = express();
@@ -174,30 +180,34 @@ wss.on("connection", (twilioWs) => {
     greetingSent = true;
     responseInProgress = true;
 
-    openaiWs.send(
-      JSON.stringify({
-        type: "conversation.item.create",
-        item: {
-          type: "message",
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: FIRST_MESSAGE
-            }
-          ]
-        }
-      })
-    );
+    setTimeout(() => {
+      if (openaiWs.readyState !== WebSocket.OPEN) return;
 
-    openaiWs.send(
-      JSON.stringify({
-        type: "response.create",
-        response: {
-          modalities: ["audio", "text"]
-        }
-      })
-    );
+      openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: FIRST_MESSAGE
+              }
+            ]
+          }
+        })
+      );
+
+      openaiWs.send(
+        JSON.stringify({
+          type: "response.create",
+          response: {
+            modalities: ["audio", "text"]
+          }
+        })
+      );
+    }, 700);
   }
 
   function askMissRenderToRespond() {
