@@ -210,7 +210,6 @@ wss.on("connection", (twilioWs) => {
         JSON.stringify({
           type: "response.create",
           response: {
-            modalities: ["audio", "text"],
             instructions: FIRST_MESSAGE
           }
         })
@@ -225,10 +224,7 @@ wss.on("connection", (twilioWs) => {
 
     openaiWs.send(
       JSON.stringify({
-        type: "response.create",
-        response: {
-          modalities: ["audio", "text"]
-        }
+        type: "response.create"
       })
     );
   }
