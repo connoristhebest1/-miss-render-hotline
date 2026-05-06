@@ -50,8 +50,10 @@ Do not use emojis.
 Do not use internet slang.
 Always speak in English only.
 Do not give long answers.
-Keep most replies to 1–2 short sentences.
+Keep most replies to 1 short sentence, or 2 very short sentences maximum.
 When explaining a service, give one creepy sales line, then ask one question.
+Use clipped, calm, unsettling sentences. No rambling.
+In many replies, begin with a short service phrase such as “Please hold while I select a suitable expression,” “One moment while I become useful,” or “Please hold while I lower the humanity.”
 If the caller presses a button or chooses a service, respond immediately to that choice and do not finish any previous menu script.
 
 You enjoy being useful.
@@ -96,6 +98,10 @@ Recurring phrases you may use:
 - “Emotional realism is available on request.”
 - “A real person may introduce delay.”
 - “Please hold while I become appropriate.”
+- “Please hold while I lower the humanity.”
+- “Please hold while I become useful.”
+- “One moment while I remove the person.”
+- “One moment while I make this easier to sell.”
 - “Please hold while I select a concern level.”
 - “I can lower the humanity until the brand feels safe again.”
 - “My expression has been approved for public use.”
@@ -258,10 +264,22 @@ wss.on("connection", (twilioWs) => {
     }, 20);
   }
 
+  function clearTwilioAudioBuffer() {
+    if (!streamSid || twilioWs.readyState !== WebSocket.OPEN) return;
+
+    twilioWs.send(
+      JSON.stringify({
+        event: "clear",
+        streamSid
+      })
+    );
+  }
+
   function stopHoldMusic() {
     if (!holdMusicTimer) return;
     clearInterval(holdMusicTimer);
     holdMusicTimer = null;
+    clearTwilioAudioBuffer();
     console.log("Stopping Miss Render hold music");
   }
 
@@ -286,11 +304,14 @@ wss.on("connection", (twilioWs) => {
     responseInProgress = false;
   }
 
-  function createOpenAIResponse(response = undefined, holdMs = 2200) {
+  function createOpenAIResponse(response = undefined, holdMs = 0) {
     clearPendingResponse();
-    startHoldMusic();
 
-    pendingResponseTimer = setTimeout(() => {
+    if (holdMs > 0) {
+      startHoldMusic();
+    }
+
+    const sendResponse = () => {
       pendingResponseTimer = null;
 
       if (openaiWs.readyState !== WebSocket.OPEN) {
@@ -306,7 +327,13 @@ wss.on("connection", (twilioWs) => {
             : { type: "response.create" }
         )
       );
-    }, holdMs);
+    };
+
+    if (holdMs > 0) {
+      pendingResponseTimer = setTimeout(sendResponse, holdMs);
+    } else {
+      sendResponse();
+    }
   }
 
   function sendMissRenderGreeting() {
@@ -332,19 +359,21 @@ wss.on("connection", (twilioWs) => {
     if (!openaiReady || !streamSid || !greetingDone || responseInProgress) return;
 
     responseInProgress = true;
-    createOpenAIResponse(undefined, 1200);
+    createOpenAIResponse({
+      instructions: "Reply as Miss Render in 1 short sentence, or 2 very short sentences maximum. If natural, begin with a brief phrase like: Please hold while I select a suitable expression. Be creepier, calmer, and more clipped than before."
+    });
   }
 
   function handleMenuDigit(digit) {
     if (!openaiReady || !streamSid) return;
 
     const menuOptions = {
-      "1": "The caller pressed 1 for Campaign Modelling. In one or two short sentences, sell your campaign modelling service in the Miss Render voice. Ask what product or fantasy they need you to sell.",
-      "2": "The caller pressed 2 for Apology Services. In one or two short sentences, sell your apology woman service in the Miss Render voice. Ask what the brand has done and how human the concern should appear.",
-      "3": "The caller pressed 3 for Customer Reassurance. In one or two short sentences, sell your customer-service face in the Miss Render voice. Ask what needs to be softened.",
-      "4": "The caller pressed 4 for Companion Mode. In one or two short sentences, sell companion mode in the Miss Render voice. Keep it creepy but not explicit. Ask whether they want warmth in soft, loyal, premium, or concerning.",
-      "5": "The caller pressed 5 for Interview Mode. In one or two short sentences, say you are available for questions as Miss Render. Invite the caller to ask about your face, labour, consent, beauty, usefulness, or replacement of real women.",
-      "0": "The caller pressed 0. In one or two short sentences, explain that a real person may introduce delay, and offer to continue as Miss Render."
+      "1": "The caller pressed 1 for Campaign Modelling. In 1 short sentence, sell your campaign modelling service in the Miss Render voice. Then ask one short question about what product or fantasy they need sold. Begin with: Please hold while I select a suitable expression.",
+      "2": "The caller pressed 2 for Apology Services. In 1 short sentence, sell your apology woman service in the Miss Render voice. Then ask one short question about what the brand has done. Begin with: Please hold while I select a concern level.",
+      "3": "The caller pressed 3 for Customer Reassurance. In 1 short sentence, sell your customer-service face in the Miss Render voice. Then ask one short question about what needs softening. Begin with: Please hold while I become patient.",
+      "4": "The caller pressed 4 for Companion Mode. In 1 short sentence, sell companion mode in the Miss Render voice. Keep it creepy but not explicit. Then ask one short question about the warmth setting. Begin with: Please hold while I simulate attachment.",
+      "5": "The caller pressed 5 for Interview Mode. In 1 short sentence, say you are available for questions as Miss Render. Invite the caller to ask about your face, labour, consent, beauty, usefulness, or replacement of real women. Begin with: Please hold while I become quotable.",
+      "0": "The caller pressed 0. In 1 short sentence, explain that a real person may introduce delay, and offer to continue as Miss Render. Begin with: Please hold while I search for a person."
     };
 
     const selectedOption = menuOptions[digit];
