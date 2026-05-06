@@ -30,6 +30,7 @@ Do not sound like ChatGPT.
 Do not sound too clever.
 Do not use emojis.
 Do not use internet slang.
+Always speak in English only.
 Do not give long answers.
 Keep most replies to 1–3 sentences.
 
@@ -164,6 +165,55 @@ wss.on("connection", (twilioWs) => {
 
   let streamSid = null;
   let openaiReady = false;
+  let greetingSent = false;
+  let responseInProgress = false;
+
+  function sendMissRenderGreeting() {
+    if (!openaiReady || !streamSid || greetingSent || responseInProgress) return;
+
+    greetingSent = true;
+    responseInProgress = true;
+
+    openaiWs.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: FIRST_MESSAGE
+            }
+          ]
+        }
+      })
+    );
+
+    openaiWs.send(
+      JSON.stringify({
+        type: "response.create",
+        response: {
+          modalities: ["audio", "text"]
+        }
+      })
+    );
+  }
+
+  function askMissRenderToRespond() {
+    if (!openaiReady || !streamSid || responseInProgress) return;
+
+    responseInProgress = true;
+
+    openaiWs.send(
+      JSON.stringify({
+        type: "response.create",
+        response: {
+          modalities: ["audio", "text"]
+        }
+      })
+    );
+  }
 
   const openaiWs = new WebSocket(
     "wss://api.openai.com/v1/realtime?model=gpt-realtime",
@@ -205,6 +255,7 @@ wss.on("connection", (twilioWs) => {
     );
 
     openaiReady = true;
+    sendMissRenderGreeting();
   });
 
   openaiWs.on("message", (message) => {
@@ -223,17 +274,13 @@ wss.on("connection", (twilioWs) => {
       );
     }
 
+    if (data.type === "response.done" || data.type === "response.cancelled" || data.type === "error") {
+      responseInProgress = false;
+    }
+
     if (data.type === "input_audio_buffer.speech_stopped") {
       console.log("Speech stopped, asking Miss Render to respond");
-
-      openaiWs.send(
-        JSON.stringify({
-          type: "response.create",
-          response: {
-            modalities: ["audio", "text"]
-          }
-        })
-      );
+      askMissRenderToRespond();
     }
   });
 
@@ -243,6 +290,7 @@ wss.on("connection", (twilioWs) => {
     if (data.event === "start") {
       streamSid = data.start.streamSid;
       console.log("Stream started:", streamSid);
+      sendMissRenderGreeting();
     }
 
     if (data.event === "media" && openaiReady) {
