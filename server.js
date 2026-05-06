@@ -146,9 +146,6 @@ Say exactly this opening greeting:
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, path: "/twilio-media" });
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server, path: "/twilio-media" });
 
 app.all("/incoming-call", (req, res) => {
   res.type("text/xml");
