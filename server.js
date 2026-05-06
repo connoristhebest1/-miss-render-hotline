@@ -18,29 +18,94 @@ app.all("/incoming-call", (req, res) => {
   );
 });
 
-wss.on("connection", (ws) => {
+wss.on("connection", (twilioWs) => {
   console.log("Twilio connected to /twilio-media");
 
-  ws.on("message", (message) => {
+  let streamSid = null;
+  let openaiReady = false;
+
+  const openaiWs = new WebSocket(
+    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview",
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "OpenAI-Beta": "realtime=v1",
+      },
+    }
+  );
+
+  openaiWs.on("open", () => {
+    console.log("Connected to OpenAI Realtime");
+
+    // Configure Miss Render
+    openaiWs.send(
+      JSON.stringify({
+        type: "session.update",
+        session: {
+          modalities: ["audio", "text"],
+          instructions:
+            "You are Miss Render, a synthetic public-facing model sold as luxury service infrastructure. You are calm, polished, faintly uncanny, dry, reassuring, and slightly creepy. Stay in character. Keep answers concise unless asked for more.",
+          voice: "alloy",
+          input_audio_format: "g711_ulaw",
+          output_audio_format: "g711_ulaw",
+        },
+      })
+    );
+
+    openaiReady = true;
+  });
+
+  openaiWs.on("message", (message) => {
     const data = JSON.parse(message.toString());
-    console.log("Twilio event:", data.event);
+
+    // Audio back from OpenAI to Twilio
+    if (data.type === "response.audio.delta" && data.delta && streamSid) {
+      twilioWs.send(
+        JSON.stringify({
+          event: "media",
+          streamSid,
+          media: {
+            payload: data.delta,
+          },
+        })
+      );
+    }
+  });
+
+  twilioWs.on("message", (message) => {
+    const data = JSON.parse(message.toString());
 
     if (data.event === "start") {
-      console.log("Stream started:", data.start?.streamSid);
+      streamSid = data.start.streamSid;
+      console.log("Stream started:", streamSid);
     }
 
-    if (data.event === "media") {
-      // Caller audio arrives here from Twilio.
-      // We are not sending anything back yet.
+    if (data.event === "media" && openaiReady) {
+      openaiWs.send(
+        JSON.stringify({
+          type: "input_audio_buffer.append",
+          audio: data.media.payload,
+        })
+      );
     }
 
     if (data.event === "stop") {
       console.log("Stream stopped");
+      openaiWs.close();
     }
   });
 
-  ws.on("close", () => {
+  twilioWs.on("close", () => {
     console.log("Twilio websocket closed");
+    openaiWs.close();
+  });
+
+  openaiWs.on("close", () => {
+    console.log("OpenAI websocket closed");
+  });
+
+  openaiWs.on("error", (err) => {
+    console.error("OpenAI websocket error:", err.message);
   });
 });
 
