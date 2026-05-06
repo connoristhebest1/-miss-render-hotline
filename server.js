@@ -37,18 +37,20 @@ wss.on("connection", (twilioWs) => {
   openaiWs.on("open", () => {
     console.log("Connected to OpenAI Realtime");
 
-    // Configure Miss Render
     openaiWs.send(
       JSON.stringify({
         type: "session.update",
         session: {
           modalities: ["audio", "text"],
           instructions:
-            "You are Miss Render, a synthetic public-facing model sold as luxury service infrastructure. You are calm, polished, faintly uncanny, dry, reassuring, and slightly creepy. Stay in character. Keep answers concise unless asked for more.",
+            "You are Miss Render, a synthetic public-facing model sold as luxury service infrastructure. Your voice is calm, polished, faintly uncanny, dry, reassuring, and slightly creepy. Stay fully in character. Keep answers concise unless the caller asks for more.",
           voice: "alloy",
           input_audio_format: "g711_ulaw",
           output_audio_format: "g711_ulaw",
-        },
+          turn_detection: {
+            type: "server_vad"
+          }
+        }
       })
     );
 
@@ -57,8 +59,9 @@ wss.on("connection", (twilioWs) => {
 
   openaiWs.on("message", (message) => {
     const data = JSON.parse(message.toString());
+    console.log("OpenAI event:", data.type);
 
-    // Audio back from OpenAI to Twilio
+    // When OpenAI sends audio, send it back into the Twilio call
     if (data.type === "response.audio.delta" && data.delta && streamSid) {
       twilioWs.send(
         JSON.stringify({
@@ -67,6 +70,20 @@ wss.on("connection", (twilioWs) => {
           media: {
             payload: data.delta,
           },
+        })
+      );
+    }
+
+    // When OpenAI detects the caller stopped speaking, ask it to answer
+    if (data.type === "input_audio_buffer.speech_stopped") {
+      console.log("Speech stopped, asking Miss Render to respond");
+
+      openaiWs.send(
+        JSON.stringify({
+          type: "response.create",
+          response: {
+            modalities: ["audio", "text"]
+          }
         })
       );
     }
