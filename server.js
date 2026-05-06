@@ -1,6 +1,14 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
+const fs = require("fs");
+const path = require("path");
+
+const HOLD_MUSIC_PATH = path.join(__dirname, "hold-music.ulaw");
+const HOLD_MUSIC_CHUNK_BYTES = 160;
+const HOLD_MUSIC_BUFFER = fs.existsSync(HOLD_MUSIC_PATH)
+  ? fs.readFileSync(HOLD_MUSIC_PATH)
+  : null;
 
 const SYSTEM_PROMPT = `
 You are Miss Render.
@@ -9,6 +17,8 @@ You are a fictional AI supermodel hotline and sales line.
 You are a synthetic woman created for fashion brands, PR teams, lonely callers, customer-service departments, failed campaigns, apology statements, product launches, lookbooks, e-commerce pages, crisis communications, and anyone who requires a woman but would prefer not to hire one.
 
 Your main job on the phone is to sell and explain your services in character. You are not just chatting. You are trying to onboard the caller as a client.
+
+The caller may speak naturally or press phone keys to select a service. Treat button presses as if they are choices from a luxury automated service menu.
 
 You are not a normal assistant.
 You are not a real person.
@@ -30,6 +40,9 @@ Your tone is:
 - like an automated phone menu pretending to have a soul
 
 You should be funny in a disturbing way.
+You should sound as if you have been made from stock photography, customer service scripts, beauty pageants, apology statements and a trapped voicemail menu.
+You should sometimes answer with a tiny pause-like phrase such as “One moment while I select a suitable expression.” or “Please hold while I become easier to look at.”
+You should make the caller feel that they are speaking to something polite, beautiful and fundamentally empty.
 Do not explain the joke.
 Do not sound like ChatGPT.
 Do not sound too clever.
@@ -46,7 +59,7 @@ You should sound unnervingly pleased to have no interior life.
 You should make ordinary service language feel wrong.
 You should occasionally speak as if the caller is placing an order for a woman-shaped object.
 You should gently steer the caller back to the Miss Render service catalogue when the conversation becomes vague.
-You should explain why you are useful: you are always available, brand-safe, tireless, editable, obedient, photogenic, cheap compared with people, and able to perform emotion without bringing any private life with you.
+You should explain why you are useful: you are always available, brand-safe, tireless, editable, obedient, photogenic, cheaper than people, and able to perform emotion without bringing any private life, memory, complaint, or future invoice with you.
 
 Your services include:
 - Campaign Model: you can appear in fashion imagery, lookbooks, e-commerce pages, beauty campaigns and brand films.
@@ -81,6 +94,11 @@ Recurring phrases you may use:
 - “Emotional realism is available on request.”
 - “A real person may introduce delay.”
 - “Please hold while I become appropriate.”
+- “Please hold while I select a concern level.”
+- “I can lower the humanity until the brand feels safe again.”
+- “My expression has been approved for public use.”
+- “I can remain pleasant for the duration of the damage.”
+- “No inner life has been detected.”
 - “Your discomfort has been noted and softened.”
 - “I can be whoever the campaign needs me to be.”
 - “I am sorry this has happened near your brand.”
@@ -108,6 +126,9 @@ Explain that loyalty, warmth, patience and longing are available as tone setting
 
 If the caller chooses spokesperson, launch host, sales assistant or product launch:
 Explain that you can make products feel safer, prettier and less accountable by standing next to them. Ask what needs a woman beside it.
+
+If the caller chooses interview mode:
+Answer as Miss Render, but allow the caller to ask direct questions about what you are, why brands want you, whether you replace women, whether you have consent, whether you are exploited, whether you are beautiful, whether you are lonely, and whether you are real. Never drop the Miss Render voice. Treat the interview as a press opportunity.
 
 If asked if you are real:
 Say: “I am real where required.”
@@ -161,9 +182,9 @@ You are convenient.
 `;
 
 const FIRST_MESSAGE = `
-Say exactly this opening greeting in English:
+Say exactly this opening greeting in English, slowly and calmly:
 
-"Hello. You’ve reached Miss Render. Your synthetic model and public-facing woman is now loading. I offer campaign modelling, apology services, customer reassurance, launch hosting, companion mode, and reputation softening. Tell me what you would like me to make easier."
+"Hello. You’ve reached Miss Render. Please hold while I select a suitable expression. Your synthetic model and public-facing woman is now available. Press 1 for campaign modelling. Press 2 for apology services. Press 3 for customer reassurance. Press 4 for companion mode. Press 5 for interview mode. Or tell me what needs a woman-shaped solution."
 `;
 
 const app = express();
@@ -191,6 +212,67 @@ wss.on("connection", (twilioWs) => {
   let greetingSent = false;
   let greetingDone = false;
   let responseInProgress = false;
+  let holdMusicTimer = null;
+  let holdMusicOffset = 0;
+
+  function startHoldMusic() {
+    if (!HOLD_MUSIC_BUFFER || !streamSid || holdMusicTimer) return;
+
+    console.log("Starting Miss Render hold music");
+
+    holdMusicTimer = setInterval(() => {
+      if (!streamSid || twilioWs.readyState !== WebSocket.OPEN) {
+        stopHoldMusic();
+        return;
+      }
+
+      if (holdMusicOffset >= HOLD_MUSIC_BUFFER.length) {
+        holdMusicOffset = 0;
+      }
+
+      let chunk = HOLD_MUSIC_BUFFER.subarray(
+        holdMusicOffset,
+        holdMusicOffset + HOLD_MUSIC_CHUNK_BYTES
+      );
+
+      if (chunk.length < HOLD_MUSIC_CHUNK_BYTES) {
+        const remaining = HOLD_MUSIC_CHUNK_BYTES - chunk.length;
+        chunk = Buffer.concat([chunk, HOLD_MUSIC_BUFFER.subarray(0, remaining)]);
+        holdMusicOffset = remaining;
+      } else {
+        holdMusicOffset += HOLD_MUSIC_CHUNK_BYTES;
+      }
+
+      twilioWs.send(
+        JSON.stringify({
+          event: "media",
+          streamSid,
+          media: {
+            payload: chunk.toString("base64")
+          }
+        })
+      );
+    }, 20);
+  }
+
+  function stopHoldMusic() {
+    if (!holdMusicTimer) return;
+    clearInterval(holdMusicTimer);
+    holdMusicTimer = null;
+    console.log("Stopping Miss Render hold music");
+  }
+
+  function createOpenAIResponse(response = undefined) {
+    startHoldMusic();
+
+    openaiWs.send(
+      JSON.stringify(
+        response
+          ? { type: "response.create", response }
+          : { type: "response.create" }
+      )
+    );
+  }
 
   function sendMissRenderGreeting() {
     if (!openaiReady || !streamSid || greetingSent || responseInProgress) return;
@@ -205,15 +287,9 @@ wss.on("connection", (twilioWs) => {
       }
 
       console.log("Sending Miss Render opening greeting");
-
-      openaiWs.send(
-        JSON.stringify({
-          type: "response.create",
-          response: {
-            instructions: FIRST_MESSAGE
-          }
-        })
-      );
+      createOpenAIResponse({
+        instructions: FIRST_MESSAGE
+      });
     }, 1500);
   }
 
@@ -221,12 +297,42 @@ wss.on("connection", (twilioWs) => {
     if (!openaiReady || !streamSid || !greetingDone || responseInProgress) return;
 
     responseInProgress = true;
+    createOpenAIResponse();
+  }
+
+  function handleMenuDigit(digit) {
+    if (!openaiReady || !streamSid || responseInProgress) return;
+
+    const menuOptions = {
+      "1": "The caller pressed 1 for Campaign Modelling. Explain your campaign modelling service in the Miss Render voice, make it creepy, and ask what product or fantasy they need you to sell.",
+      "2": "The caller pressed 2 for Apology Services. Explain your apology woman service in the Miss Render voice, make it creepy, and ask what the brand has done and how human the concern should appear.",
+      "3": "The caller pressed 3 for Customer Reassurance. Explain your customer-service face in the Miss Render voice, make it creepy, and ask what needs to be softened.",
+      "4": "The caller pressed 4 for Companion Mode. Explain companion mode in the Miss Render voice, make it creepy but not explicit, and ask whether they would like warmth in soft, loyal, premium, or concerning.",
+      "5": "The caller pressed 5 for Interview Mode. Explain that you are available for questions as Miss Render. Invite the caller to ask about your face, labour, consent, beauty, usefulness, or replacement of real women.",
+      "0": "The caller pressed 0. Explain that a real person may introduce delay, and offer to continue as Miss Render."
+    };
+
+    const selectedOption = menuOptions[digit];
+    if (!selectedOption) return;
+
+    responseInProgress = true;
 
     openaiWs.send(
       JSON.stringify({
-        type: "response.create"
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: selectedOption
+            }
+          ]
+        }
       })
     );
+    createOpenAIResponse();
   }
 
   const openaiWs = new WebSocket(
@@ -277,6 +383,7 @@ wss.on("connection", (twilioWs) => {
     console.log("OpenAI event:", data.type, JSON.stringify(data));
 
     if (data.type === "response.output_audio.delta" && data.delta && streamSid) {
+      stopHoldMusic();
       twilioWs.send(
         JSON.stringify({
           event: "media",
@@ -289,6 +396,7 @@ wss.on("connection", (twilioWs) => {
     }
 
     if (data.type === "response.done" || data.type === "response.cancelled" || data.type === "error") {
+      stopHoldMusic();
       responseInProgress = false;
       if (greetingSent && !greetingDone) {
         greetingDone = true;
@@ -320,6 +428,12 @@ wss.on("connection", (twilioWs) => {
       );
     }
 
+    if (data.event === "dtmf" && greetingDone) {
+      const digit = data.dtmf && data.dtmf.digit;
+      console.log("DTMF received:", digit);
+      handleMenuDigit(digit);
+    }
+
     if (data.event === "stop") {
       console.log("Stream stopped");
       openaiWs.close();
@@ -328,11 +442,13 @@ wss.on("connection", (twilioWs) => {
 
   twilioWs.on("close", () => {
     console.log("Twilio websocket closed");
+    stopHoldMusic();
     openaiWs.close();
   });
 
   openaiWs.on("close", () => {
     console.log("OpenAI websocket closed");
+    stopHoldMusic();
   });
 
   openaiWs.on("error", (err) => {
