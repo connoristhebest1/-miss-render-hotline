@@ -25,11 +25,10 @@ wss.on("connection", (twilioWs) => {
   let openaiReady = false;
 
   const openaiWs = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview",
+    "wss://api.openai.com/v1/realtime?model=gpt-realtime",
     {
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "OpenAI-Beta": "realtime=v1",
       },
     }
   );
@@ -41,14 +40,25 @@ wss.on("connection", (twilioWs) => {
       JSON.stringify({
         type: "session.update",
         session: {
-          modalities: ["audio", "text"],
+          type: "realtime",
+          model: "gpt-realtime",
           instructions:
-            "You are Miss Render, a synthetic public-facing model sold as luxury service infrastructure. Your voice is calm, polished, faintly uncanny, dry, reassuring, and slightly creepy. Stay fully in character. Keep answers concise unless the caller asks for more.",
-          voice: "alloy",
-          input_audio_format: "g711_ulaw",
-          output_audio_format: "g711_ulaw",
-          turn_detection: {
-            type: "server_vad"
+            "You are Miss Render, a synthetic public-facing model sold as luxury service infrastructure. Your voice is calm, polished, faintly uncanny, dry, reassuring, and slightly creepy. Stay fully in character. Keep answers concise unless asked for more.",
+          audio: {
+            input: {
+              format: {
+                type: "audio/pcmu"
+              },
+              turn_detection: {
+                type: "server_vad"
+              }
+            },
+            output: {
+              format: {
+                type: "audio/pcmu"
+              },
+              voice: "marin"
+            }
           }
         }
       })
@@ -59,10 +69,9 @@ wss.on("connection", (twilioWs) => {
 
   openaiWs.on("message", (message) => {
     const data = JSON.parse(message.toString());
-    console.log("OpenAI event:", data.type);
+    console.log("OpenAI event:", data.type, JSON.stringify(data));
 
-    // When OpenAI sends audio, send it back into the Twilio call
-    if (data.type === "response.audio.delta" && data.delta && streamSid) {
+    if (data.type === "response.output_audio.delta" && data.delta && streamSid) {
       twilioWs.send(
         JSON.stringify({
           event: "media",
@@ -74,7 +83,6 @@ wss.on("connection", (twilioWs) => {
       );
     }
 
-    // When OpenAI detects the caller stopped speaking, ask it to answer
     if (data.type === "input_audio_buffer.speech_stopped") {
       console.log("Speech stopped, asking Miss Render to respond");
 
@@ -101,7 +109,7 @@ wss.on("connection", (twilioWs) => {
       openaiWs.send(
         JSON.stringify({
           type: "input_audio_buffer.append",
-          audio: data.media.payload,
+          audio: data.media.payload
         })
       );
     }
