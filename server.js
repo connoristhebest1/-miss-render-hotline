@@ -188,48 +188,38 @@ wss.on("connection", (twilioWs) => {
 
   let streamSid = null;
   let openaiReady = false;
-  let sessionReady = false;
   let greetingSent = false;
+  let greetingDone = false;
   let responseInProgress = false;
 
   function sendMissRenderGreeting() {
-    if (!openaiReady || !sessionReady || !streamSid || greetingSent || responseInProgress) return;
+    if (!openaiReady || !streamSid || greetingSent || responseInProgress) return;
 
     greetingSent = true;
     responseInProgress = true;
 
     setTimeout(() => {
-      if (openaiWs.readyState !== WebSocket.OPEN) return;
+      if (openaiWs.readyState !== WebSocket.OPEN) {
+        responseInProgress = false;
+        return;
+      }
 
-      openaiWs.send(
-        JSON.stringify({
-          type: "conversation.item.create",
-          item: {
-            type: "message",
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: FIRST_MESSAGE
-              }
-            ]
-          }
-        })
-      );
+      console.log("Sending Miss Render opening greeting");
 
       openaiWs.send(
         JSON.stringify({
           type: "response.create",
           response: {
-            modalities: ["audio", "text"]
+            modalities: ["audio", "text"],
+            instructions: FIRST_MESSAGE
           }
         })
       );
-    }, 700);
+    }, 1500);
   }
 
   function askMissRenderToRespond() {
-    if (!openaiReady || !streamSid || responseInProgress) return;
+    if (!openaiReady || !streamSid || !greetingDone || responseInProgress) return;
 
     responseInProgress = true;
 
@@ -283,16 +273,12 @@ wss.on("connection", (twilioWs) => {
     );
 
     openaiReady = true;
+    sendMissRenderGreeting();
   });
 
   openaiWs.on("message", (message) => {
     const data = JSON.parse(message.toString());
     console.log("OpenAI event:", data.type, JSON.stringify(data));
-
-    if (data.type === "session.updated") {
-      sessionReady = true;
-      sendMissRenderGreeting();
-    }
 
     if (data.type === "response.output_audio.delta" && data.delta && streamSid) {
       twilioWs.send(
@@ -308,6 +294,10 @@ wss.on("connection", (twilioWs) => {
 
     if (data.type === "response.done" || data.type === "response.cancelled" || data.type === "error") {
       responseInProgress = false;
+      if (greetingSent && !greetingDone) {
+        greetingDone = true;
+        console.log("Miss Render greeting finished");
+      }
     }
 
     if (data.type === "input_audio_buffer.speech_stopped") {
@@ -325,7 +315,7 @@ wss.on("connection", (twilioWs) => {
       sendMissRenderGreeting();
     }
 
-    if (data.event === "media" && openaiReady) {
+    if (data.event === "media" && openaiReady && greetingDone) {
       openaiWs.send(
         JSON.stringify({
           type: "input_audio_buffer.append",
