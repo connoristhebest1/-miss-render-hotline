@@ -427,9 +427,9 @@ const menuOptions = {
     createOpenAIResponse(undefined, 3200);
   }
 
-  const openaiWs = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-realtime",
-    {
+const openaiWs = new WebSocket(
+  "wss://api.openai.com/v1/realtime?model=gpt-realtime-mini",
+{
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
@@ -444,7 +444,7 @@ const menuOptions = {
         type: "session.update",
         session: {
           type: "realtime",
-          model: "gpt-realtime",
+          model: "gpt-realtime-mini",
           instructions: SYSTEM_PROMPT,
           audio: {
             input: {
