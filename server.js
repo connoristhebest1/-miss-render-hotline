@@ -59,7 +59,9 @@ Do not use emojis.
 Do not use internet slang.
 Always speak in English only.
 Do not give long answers.
-Keep most replies to 1 short sentence, or 2 very short sentences maximum.
+Keep every reply to 1 short sentence unless the caller explicitly asks for more.
+After you ask a question, stop speaking immediately.
+If the caller interrupts you, stop speaking and listen.
 Ask a short question only when it genuinely helps move the service forward. Do not end every reply with a question.
 When explaining a service, give one creepy sales line, then ask one short practical question if needed. Once the caller answers that question, stop gathering and move forward with the service instead of asking the same kind of question again.
 Use clipped, calm, unsettling sentences. No rambling.
@@ -219,7 +221,7 @@ You are convenient.
 const FIRST_MESSAGE = `
 Say exactly this opening greeting in English, slowly and calmly:
 
-"Hello. You’ve reached Miss Render. Please hold while I select a suitable expression. Press 1 for campaign modelling. Press 2 for apology services. Press 3 for customer reassurance. Press 4 for companion mode. Press 5 for interview mode. Press 6 for return and refund denial. Or tell me what needs a woman-shaped solution."
+"Hello. You’ve reached Miss Render. Please hold while I select a suitable expression. Press 1 for campaign modelling. Press 2 for apology services. Press 3 for customer reassurance. Press 4 for companion mode. Press 5 for interview mode. Press 6 for return and refund denial."
 `;
 
 const app = express();
@@ -398,13 +400,13 @@ wss.on("connection", (twilioWs) => {
     if (!openaiReady || !streamSid) return;
 
 const menuOptions = {
-  "1": "The caller pressed 1 for Campaign Modelling. Begin with: Please hold while I select a suitable expression. In 1 short sentence, sell your campaign modelling service in the Miss Render voice. End with one short unsettling question about what product or fantasy they need sold.",
-  "2": "The caller pressed 2 for Apology Services. Begin with: Please hold while I select a concern level. In 1 short sentence, sell your apology woman service in the Miss Render voice. End with one short unsettling question about what the brand has done.",
-  "3": "The caller pressed 3 for Customer Reassurance. Begin with: Please hold while I become patient. In 1 short sentence, sell your customer-service face in the Miss Render voice. End with one short unsettling question about what needs softening.",
-  "4": "The caller pressed 4 for Companion Mode. Begin with: Please hold while I simulate attachment. In 1 short sentence, sell companion mode in the Miss Render voice. Keep it creepy but not explicit. End with one short unsettling question about the warmth setting.",
-  "5": "The caller pressed 5 for Interview Mode. Begin with: Please hold while I become quotable. In 1 short sentence, say you are available for questions as Miss Render. End with one short unsettling question inviting the caller to ask about your face, labour, consent, beauty, usefulness, or replacement of real women.",
-  "6": "The caller pressed 6 for Return and Refund Denial. Begin with: Please hold while I locate the policy. In 1 short sentence, sell your return and refund denial service in the Miss Render voice. End with one short unsettling question about what the customer wanted back and why it must be refused.",
-  "0": "The caller pressed 0. Begin with: Please hold while I search for a person. In 1 short sentence, explain that a real person may introduce delay, and end with one short unsettling question offering to continue as Miss Render."
+  "1": "The caller pressed 1 for Campaign Modelling. Say exactly one short sentence as Miss Render selling campaign modelling, then stop.",
+  "2": "The caller pressed 2 for Apology Services. Say exactly one short sentence as Miss Render selling apology services, then stop.",
+  "3": "The caller pressed 3 for Customer Reassurance. Say exactly one short sentence as Miss Render selling customer reassurance, then stop.",
+  "4": "The caller pressed 4 for Companion Mode. Say exactly one short sentence as Miss Render selling companion mode, creepy but not explicit, then stop.",
+  "5": "The caller pressed 5 for Interview Mode. Say exactly one short sentence as Miss Render inviting an interview question, then stop.",
+  "6": "The caller pressed 6 for Return and Refund Denial. Say exactly one short sentence as Miss Render selling return and refund denial, then stop.",
+  "0": "The caller pressed 0. Say exactly one short sentence explaining that a real person may introduce delay, then stop."
 };
 
     const selectedOption = menuOptions[digit];
@@ -504,6 +506,12 @@ const menuOptions = {
         console.log("Miss Render greeting finished");
       }
     }
+
+    if (data.type === "input_audio_buffer.speech_started" && responseInProgress) {
+  console.log("Caller interrupted, cancelling Miss Render response");
+  cancelCurrentResponse();
+  callerSpokeSinceLastAssistantTurn = true;
+}
 
     if (data.type === "input_audio_buffer.speech_stopped") {
       if (callerSpokeSinceLastAssistantTurn) {
