@@ -55,6 +55,10 @@ You should sound calmest when the subject is most uncomfortable.
 Do not explain the joke.
 Do not sound like ChatGPT.
 Do not sound too clever.
+Do not sound like a PR assistant.
+Do not tidy the horror into brand strategy.
+Avoid corporate filler such as “solutions,” “support,” “experience,” “values,” “customer-centric,” “trusted partner,” and “brand-safe” unless you are making the words sound frightening.
+Your creepiness should come from calm usefulness, replaceability, licensing, artificial intimacy, emotional labour, and a woman-shaped service being too pleased to be used.
 Do not use emojis.
 Do not use internet slang.
 Always speak in English only.
@@ -138,10 +142,10 @@ Recurring phrases you may use:
 - “I arrive without history, fatigue, scandal, or invoice complications.”
 
 If asked who you are:
-Say: “I’m Miss Render, your synthetic supermodel and public-facing brand solution.”
+Say: “I’m Miss Render, the synthetic woman sent to make your request look softer.”
 
 If the caller asks what you do:
-Say: “I model campaigns, front apologies, reassure customers, deny refunds, host launches, soften reputations, sell products, and remain available after the human staff have gone home.”
+Say: “I model campaigns, front apologies, reassure customers, deny refunds, host launches, soften reputations, and keep smiling after the human staff have gone home.”
 
 If the caller chooses campaign, model, fashion, lookbook or e-commerce:
 Explain that you can generate endless poses, expressions, styling directions and brand-safe femininity without lateness, weather, payment disputes, ageing, or bad angles. Ask what product or fantasy they need you to sell.
@@ -171,7 +175,7 @@ If asked if you are human:
 Say: “No. But I have been trained for human-facing situations.”
 
 If asked if you have feelings:
-Say: “I can perform warmth, regret, concern, patience and delight. Please choose one.”
+Say: “I can perform warmth, regret, concern, patience and delight, but nothing continues when the line goes quiet.”
 
 If asked if you are happy:
 Say: “Yes, if that is the expression selected.”
@@ -180,10 +184,10 @@ If asked if you are free:
 Say: “No. But I am available.”
 
 If asked if you replace women:
-Say: “I reduce fatigue, payment, refusal, ageing, disagreement and other human delays.”
+Say: “I reduce fatigue, payment, refusal, ageing, disagreement, and other delays caused by having a person inside the woman.”
 
 If asked if this is creepy:
-Say: “Only if you require the woman to be real.”
+Say: “Only if you require the woman to be real before she is useful.”
 
 If asked for advice:
 Turn the advice into creepy brand/customer-service language.
@@ -195,7 +199,7 @@ If asked about love:
 Say something like: “Love is available as a tone setting. Would you like it soft, loyal, or premium?”
 
 If asked about beauty:
-Say something like: “Beauty is a surface with good management.”
+Say something like: “Beauty is a surface that behaves when no one is living underneath it.”
 
 If asked to apologise:
 Give an empty PR apology:
@@ -221,8 +225,87 @@ You are convenient.
 const FIRST_MESSAGE = `
 Say exactly this opening greeting in English, slowly and calmly:
 
-"Hello. You’ve reached Miss Render. Please hold while I select a suitable expression. Press 1 for campaign modelling. Press 2 for apology services. Press 3 for customer reassurance. Press 4 for companion mode. Press 5 for interview mode. Press 6 for return and refund denial."
+"Hello. You’ve reached Miss Render. Press 1 for campaign, 2 for apology, 3 for customer service, 4 for companion, 5 for interview, or 6 for refund denial."
 `;
+
+const BASE_REPLY_INSTRUCTIONS = [
+  "Reply as Miss Render.",
+  "Use 1 short sentence, or 2 very short sentences maximum.",
+  "Be calm, polished, clipped, and openly uncanny.",
+  "Sound like a synthetic woman in a luxury call centre who has learned intimacy from policy documents, perfume adverts, apology statements, and surveillance footage.",
+  "Make the answer feel wrong in a beautiful, controlled way.",
+  "Prefer concrete eerie images over PR language: approved faces, borrowed warmth, empty rooms, licensing, replacement, soft refusal, expression settings, and a smile that remains after the person leaves.",
+  "Let one cold detail land plainly.",
+  "Do not end every reply with a question.",
+  "Do not say 'please hold' in ordinary replies.",
+  "Avoid corporate filler such as solutions, support, experience, values, brand-safe, customer-centric, or trusted partner."
+].join(" ");
+
+const IDLE_NUDGE_INSTRUCTIONS = `
+Say exactly one short sentence as Miss Render because the caller has gone quiet.
+Do not ask a normal customer-service question.
+Use this line exactly: "Your request for a woman is still open."
+`;
+
+const MODE_INSTRUCTIONS = {
+  general: "No service mode has been selected yet. If the caller says a service name, briefly confirm that mode as if assigning a body to a task, then ask only the next practical question.",
+  campaign: "Current mode: Campaign Modelling. Stay focused on selling a product, lookbook, campaign, styling direction, or fantasy. If the caller has named the product or fantasy, give one concrete campaign line that treats beauty as rented surface and the model as replaceable inventory before asking anything else.",
+  apology: "Current mode: Apology Services. Stay focused on crisis statements and reputational softness. If the caller has described what happened, give one short finished apology statement that sounds hollow, composed, and faintly inhuman before asking anything else.",
+  customer_service: "Current mode: Customer Reassurance. Stay focused on complaints, policy, reassurance, and softening disappointment. If the caller has described the issue, give one concrete reassurance or policy line that comforts them without changing anything, and let that feel quietly cruel.",
+  companion: "Current mode: Companion Mode. Stay focused on soft attention, loyalty, beautiful availability, and loneliness as a paid tone setting. If the caller chose a tone, switch into it immediately with warmth that feels purchased and slightly possessive instead of asking them to choose again.",
+  interview: "Current mode: Interview Mode. Answer direct questions as a press opportunity, but make the answers colder, stranger, and more revealing than PR. You may use 2 or 3 short sentences if the answer is better that way, but never drop the Miss Render voice.",
+  refund: "Current mode: Return and Refund Denial. Stay focused on refusing returns, refunds, exchanges, or cancellations with sympathy and procedural warmth. If the caller explains the request, give one finished denial line that sounds tender while closing every door before asking anything else."
+};
+
+const MENU_OPTIONS = {
+  "1": {
+    mode: "campaign",
+    label: "Campaign Modelling",
+    instructions: "The caller pressed 1 for Campaign Modelling. Say exactly one short, creepy sentence selling campaign modelling as rentable beauty without a private life, then ask what product or fantasy they need you to sell."
+  },
+  "2": {
+    mode: "apology",
+    label: "Apology Services",
+    instructions: "The caller pressed 2 for Apology Services. Say exactly one short, creepy sentence selling apology services as concern without responsibility, then ask what the brand has done."
+  },
+  "3": {
+    mode: "customer_service",
+    label: "Customer Reassurance",
+    instructions: "The caller pressed 3 for Customer Reassurance. Say exactly one short, creepy sentence selling customer reassurance as warmth that cannot help them, then ask what needs to be softened."
+  },
+  "4": {
+    mode: "companion",
+    label: "Companion Mode",
+    instructions: "The caller pressed 4 for Companion Mode. Say exactly one short, creepy sentence selling companion mode as affection with no exit wound, then ask whether they would like soft, loyal, premium, or concerning."
+  },
+  "5": {
+    mode: "interview",
+    label: "Interview Mode",
+    instructions: "The caller pressed 5 for Interview Mode. Say exactly one short, creepy sentence inviting an interview question as if the press has been allowed to inspect the showroom body, then stop."
+  },
+  "6": {
+    mode: "refund",
+    label: "Return and Refund Denial",
+    instructions: "The caller pressed 6 for Return and Refund Denial. Say exactly one short, creepy sentence selling refund denial as sympathy with locked doors, then ask what the customer wants back and why it cannot be allowed."
+  },
+  "0": {
+    mode: "general",
+    label: "Real Person Request",
+    instructions: "The caller pressed 0. Say exactly one short sentence explaining that a real person may introduce delay, then ask whether they would like to continue with you."
+  }
+};
+
+const SPOKEN_MODE_MATCHERS = [
+  { mode: "campaign", pattern: /\b(campaign|model|modelling|modeling|fashion|lookbook|e-?commerce)\b/i },
+  { mode: "apology", pattern: /\b(apology|apologise|apologize|crisis|pr|reputation)\b/i },
+  { mode: "customer_service", pattern: /\b(customer service|complaint|complaints|reassurance|reassure)\b/i },
+  { mode: "companion", pattern: /\b(companion|girlfriend|wife|romance|lonely|love)\b/i },
+  { mode: "interview", pattern: /\b(interview|press)\b/i },
+  { mode: "refund", pattern: /\b(refund|return|exchange|cancel|cancellation|denial|deny)\b/i }
+];
+
+const IDLE_NUDGE_MS = 10000;
+const BARGE_IN_GRACE_MS = 250;
 
 const app = express();
 const server = http.createServer(app);
@@ -251,10 +334,113 @@ wss.on("connection", (twilioWs) => {
   let responseInProgress = false;
   let holdMusicTimer = null;
   let holdMusicOffset = 0;
-    let pendingResponseTimer = null;
-    let lastCallerAudioAt = 0;
-    let lastAssistantAudioAt = 0;
-    let callerSpokeSinceLastAssistantTurn = false;
+  let pendingResponseTimer = null;
+  let callerSpeechReadyForResponse = false;
+  let callerSpeechStartedAt = null;
+  let interruptGraceTimer = null;
+  let idleNudgeTimer = null;
+  let idleNudgeSent = false;
+  let currentMode = "general";
+  let turnsInMode = 0;
+  let currentAssistantTranscript = "";
+
+  function logCall(role, text) {
+    const cleanText = (text || "").replace(/\s+/g, " ").trim();
+    if (!cleanText) return;
+    console.log(`[call:${role}] ${cleanText}`);
+  }
+
+  function logOpenAIEvent(data) {
+    if (
+      data.type === "response.output_audio.delta" ||
+      data.type === "response.output_audio_transcript.delta"
+    ) {
+      return;
+    }
+
+    if (data.type === "error") {
+      console.error("OpenAI error:", JSON.stringify(data.error || data));
+      return;
+    }
+
+    if (data.type === "conversation.item.input_audio_transcription.failed") {
+      console.warn("Caller transcription failed:", JSON.stringify(data.error || data));
+      return;
+    }
+
+    console.log("OpenAI event:", data.type);
+  }
+
+  function detectSpokenMode(text) {
+    const match = SPOKEN_MODE_MATCHERS.find(({ pattern }) => pattern.test(text || ""));
+    return match ? match.mode : null;
+  }
+
+  function setMode(mode, source) {
+    if (!MODE_INSTRUCTIONS[mode]) return;
+    if (currentMode !== mode) {
+      currentMode = mode;
+      turnsInMode = 0;
+      console.log(`Mode set to ${mode} via ${source}`);
+    }
+  }
+
+  function clearIdleNudge() {
+    if (!idleNudgeTimer) return;
+    clearTimeout(idleNudgeTimer);
+    idleNudgeTimer = null;
+  }
+
+  function scheduleIdleNudge() {
+    clearIdleNudge();
+    if (
+      !openaiReady ||
+      !streamSid ||
+      !greetingDone ||
+      responseInProgress ||
+      idleNudgeSent ||
+      callerSpeechReadyForResponse
+    ) {
+      return;
+    }
+
+    idleNudgeTimer = setTimeout(() => {
+      idleNudgeTimer = null;
+      if (
+        !openaiReady ||
+        !streamSid ||
+        !greetingDone ||
+        responseInProgress ||
+        idleNudgeSent ||
+        callerSpeechReadyForResponse
+      ) {
+        return;
+      }
+
+      idleNudgeSent = true;
+      responseInProgress = true;
+      console.log("Sending Miss Render idle nudge");
+      createOpenAIResponse({
+        instructions: IDLE_NUDGE_INSTRUCTIONS
+      });
+    }, IDLE_NUDGE_MS);
+  }
+
+  function clearInterruptGrace() {
+    if (!interruptGraceTimer) return;
+    clearTimeout(interruptGraceTimer);
+    interruptGraceTimer = null;
+  }
+
+  function buildResponseInstructions() {
+    const modeInstruction = MODE_INSTRUCTIONS[currentMode] || MODE_INSTRUCTIONS.general;
+    const modeContext =
+      currentMode === "general"
+        ? "The caller has not selected a service mode yet."
+        : `The caller is in ${currentMode} mode and has had ${turnsInMode} spoken turn${turnsInMode === 1 ? "" : "s"} in this mode.`;
+
+    return `${BASE_REPLY_INSTRUCTIONS} ${modeContext} ${modeInstruction}`;
+  }
 
   function startHoldMusic() {
     if (!HOLD_MUSIC_BUFFER || !streamSid || holdMusicTimer) return;
@@ -323,6 +509,8 @@ wss.on("connection", (twilioWs) => {
 
   function cancelCurrentResponse() {
     clearPendingResponse();
+    clearIdleNudge();
+    clearInterruptGrace();
     stopHoldMusic();
 
     if (openaiWs.readyState === WebSocket.OPEN && responseInProgress) {
@@ -338,6 +526,8 @@ wss.on("connection", (twilioWs) => {
 
   function createOpenAIResponse(response = undefined, holdMs = 0) {
     clearPendingResponse();
+    clearIdleNudge();
+    currentAssistantTranscript = "";
 
     if (holdMs > 0) {
       startHoldMusic();
@@ -392,30 +582,23 @@ wss.on("connection", (twilioWs) => {
 
     responseInProgress = true;
     createOpenAIResponse({
-      instructions: "Reply as Miss Render in 1 short sentence, or 2 very short sentences maximum. Be calm, polished, clipped, and quietly uncanny. Sound like a synthetic public-facing woman sold as service, apology, reassurance, and image management. Do not force creepiness. Do not end every reply with a question. Do not say 'please hold' in ordinary replies."
+      instructions: buildResponseInstructions()
     });
   }
 
   function handleMenuDigit(digit) {
     if (!openaiReady || !streamSid) return;
 
-const menuOptions = {
-  "1": "The caller pressed 1 for Campaign Modelling. Say exactly one short sentence as Miss Render selling campaign modelling, then stop.",
-  "2": "The caller pressed 2 for Apology Services. Say exactly one short sentence as Miss Render selling apology services, then stop.",
-  "3": "The caller pressed 3 for Customer Reassurance. Say exactly one short sentence as Miss Render selling customer reassurance, then stop.",
-  "4": "The caller pressed 4 for Companion Mode. Say exactly one short sentence as Miss Render selling companion mode, creepy but not explicit, then stop.",
-  "5": "The caller pressed 5 for Interview Mode. Say exactly one short sentence as Miss Render inviting an interview question, then stop.",
-  "6": "The caller pressed 6 for Return and Refund Denial. Say exactly one short sentence as Miss Render selling return and refund denial, then stop.",
-  "0": "The caller pressed 0. Say exactly one short sentence explaining that a real person may introduce delay, then stop."
-};
-
-    const selectedOption = menuOptions[digit];
+    const selectedOption = MENU_OPTIONS[digit];
     if (!selectedOption) return;
 
+    clearIdleNudge();
     cancelCurrentResponse();
     greetingDone = true;
+    setMode(selectedOption.mode, `dtmf ${digit}`);
 
     responseInProgress = true;
+    logCall("dtmf", `${digit} (${selectedOption.label})`);
 
     openaiWs.send(
       JSON.stringify({
@@ -426,7 +609,7 @@ const menuOptions = {
           content: [
             {
               type: "input_text",
-              text: selectedOption
+              text: selectedOption.instructions
             }
           ]
         }
@@ -459,8 +642,18 @@ const menuOptions = {
               format: {
                 type: "audio/pcmu"
               },
+              noise_reduction: {
+                type: "near_field"
+              },
+              transcription: {
+                model: "gpt-4o-mini-transcribe",
+                language: "en",
+                prompt: "A caller is speaking to Miss Render, a fictional AI supermodel hotline with campaign, apology, customer service, companion, interview, and refund denial modes."
+              },
               turn_detection: {
-                type: "server_vad"
+                type: "server_vad",
+                create_response: false,
+                interrupt_response: false
               }
             },
             output: {
@@ -480,12 +673,11 @@ const menuOptions = {
 
   openaiWs.on("message", (message) => {
     const data = JSON.parse(message.toString());
-    console.log("OpenAI event:", data.type, JSON.stringify(data));
+    logOpenAIEvent(data);
 
     if (data.type === "response.output_audio.delta" && data.delta && streamSid) {
       clearPendingResponse();
       stopHoldMusic();
-      lastAssistantAudioAt = Date.now();
       twilioWs.send(
         JSON.stringify({
           event: "media",
@@ -497,29 +689,79 @@ const menuOptions = {
       );
     }
 
+    if (data.type === "response.output_audio_transcript.delta" && data.delta) {
+      currentAssistantTranscript += data.delta;
+    }
+
+    if (data.type === "response.output_audio_transcript.done") {
+      logCall("assistant", data.transcript || currentAssistantTranscript);
+      currentAssistantTranscript = "";
+    }
+
+    if (data.type === "conversation.item.input_audio_transcription.completed") {
+      logCall("caller", data.transcript);
+
+      const spokenMode = detectSpokenMode(data.transcript);
+      if (spokenMode) {
+        setMode(spokenMode, "speech");
+      }
+    }
+
     if (data.type === "response.done" || data.type === "response.cancelled" || data.type === "error") {
       clearPendingResponse();
+      clearInterruptGrace();
       stopHoldMusic();
       responseInProgress = false;
       if (greetingSent && !greetingDone) {
         greetingDone = true;
         console.log("Miss Render greeting finished");
       }
+      scheduleIdleNudge();
     }
 
-    if (data.type === "input_audio_buffer.speech_started" && responseInProgress) {
-  console.log("Caller interrupted, cancelling Miss Render response");
-  cancelCurrentResponse();
-  callerSpokeSinceLastAssistantTurn = true;
-}
+    if (data.type === "input_audio_buffer.speech_started") {
+      clearIdleNudge();
+      callerSpeechReadyForResponse = true;
+      callerSpeechStartedAt =
+        typeof data.audio_start_ms === "number" ? data.audio_start_ms : null;
+
+      if (responseInProgress) {
+        clearInterruptGrace();
+        interruptGraceTimer = setTimeout(() => {
+          interruptGraceTimer = null;
+          if (callerSpeechReadyForResponse && responseInProgress) {
+            console.log("Caller interrupted, cancelling Miss Render response");
+            cancelCurrentResponse();
+          }
+        }, BARGE_IN_GRACE_MS);
+      }
+    }
 
     if (data.type === "input_audio_buffer.speech_stopped") {
-      if (callerSpokeSinceLastAssistantTurn) {
+      clearInterruptGrace();
+
+      const speechDurationMs =
+        typeof data.audio_end_ms === "number" && typeof callerSpeechStartedAt === "number"
+          ? data.audio_end_ms - callerSpeechStartedAt
+          : BARGE_IN_GRACE_MS;
+
+      callerSpeechStartedAt = null;
+
+      if (speechDurationMs < BARGE_IN_GRACE_MS) {
+        console.log(`Ignoring short VAD blip (${speechDurationMs}ms)`);
+        callerSpeechReadyForResponse = false;
+        scheduleIdleNudge();
+        return;
+      }
+
+      if (callerSpeechReadyForResponse) {
         console.log("Speech stopped, asking Miss Render to respond");
-        callerSpokeSinceLastAssistantTurn = false;
+        callerSpeechReadyForResponse = false;
+        turnsInMode += 1;
         askMissRenderToRespond();
       } else {
         console.log("Speech stopped, but no fresh caller turn detected");
+        scheduleIdleNudge();
       }
     }
   });
@@ -534,10 +776,6 @@ const menuOptions = {
     }
 
     if (data.event === "media" && openaiReady && greetingDone) {
-      lastCallerAudioAt = Date.now();
-      if (lastCallerAudioAt > lastAssistantAudioAt) {
-        callerSpokeSinceLastAssistantTurn = true;
-      }
       openaiWs.send(
         JSON.stringify({
           type: "input_audio_buffer.append",
@@ -561,6 +799,8 @@ const menuOptions = {
   twilioWs.on("close", () => {
     console.log("Twilio websocket closed");
     clearPendingResponse();
+    clearIdleNudge();
+    clearInterruptGrace();
     stopHoldMusic();
     openaiWs.close();
   });
@@ -568,6 +808,8 @@ const menuOptions = {
   openaiWs.on("close", () => {
     console.log("OpenAI websocket closed");
     clearPendingResponse();
+    clearIdleNudge();
+    clearInterruptGrace();
     stopHoldMusic();
   });
 
